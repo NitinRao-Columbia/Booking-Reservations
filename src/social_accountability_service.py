@@ -1,79 +1,35 @@
 import os
-from flask import Flask, request, jsonify
-from db import DB
+import requests
+from flask import Flask, jsonify
 from pydantic import BaseModel, ValidationError
-from typing import List, Optional
 
 app = Flask(__name__)
 
-# Initialize the database
-db = DB(
-    host=os.getenv("DB_HOST"),
-    port=int(os.getenv("DB_PORT")),
-    user=os.getenv("DB_USER"),
-    password=os.getenv("DB_PASSWORD"),
-    database=os.getenv("DB_NAME"),
-)
-
-# Pydantic models for validation
-class Friend(BaseModel):
-    name: str
-    email: str
-
-class AccountabilityMetrics(BaseModel):
-    points: int
-    days_late: int
-    total_amount: float
-
-class LeaderboardEntry(BaseModel):
+# Pydantic model for validation
+class Payment(BaseModel):
     user: str
-    metrics: AccountabilityMetrics
+    amount_paid: float
 
-# Endpoints
-@app.route("/friends", methods=["POST"])
-def add_friend():
+# Endpoint to get the amount each person has paid
+@app.route("/payments", methods=["GET"])
+def get_payments():
     try:
-        data = request.get_json()
-        friend = Friend(**data)
-        db.execute("INSERT INTO friends (name, email) VALUES (%s, %s)", (friend.name, friend.email))
-        return jsonify({"message": "Friend added successfully!"}), 201
-    except ValidationError as e:
-        return jsonify({"error": e.errors()}), 400
+        # Retrieve user data from the user management microservice
+        response = requests.get("http://localhost:5000/users")
+        response.raise_for_status()
+        users = response.json()
 
-@app.route("/friends/<email>", methods=["DELETE"])
-def remove_friend(email):
-    db.execute("DELETE FROM friends WHERE email = %s", (email,))
-    return jsonify({"message": "Friend removed successfully!"}), 200
-
-@app.route("/leaderboard", methods=["GET"])
-def get_leaderboard():
-    results = db.query("SELECT user, points, days_late, total_amount FROM leaderboard ORDER BY points DESC")
-    leaderboard = [
-        LeaderboardEntry(
-            user=row["user"],
-            metrics=AccountabilityMetrics(
-                points=row["points"],
-                days_late=row["days_late"],
-                total_amount=row["total_amount"],
-            ),
-        )
-        for row in results
-    ]
-    return jsonify([entry.dict() for entry in leaderboard]), 200
-
-@app.route("/metrics", methods=["POST"])
-def update_metrics():
-    try:
-        data = request.get_json()
-        user = data.get("user")
-        metrics = AccountabilityMetrics(**data.get("metrics"))
-        db.execute(
-            "INSERT INTO leaderboard (user, points, days_late, total_amount) VALUES (%s, %s, %s, %s) "
-            "ON DUPLICATE KEY UPDATE points = %s, days_late = %s, total_amount = %s",
-            (user, metrics.points, metrics.days_late, metrics.total_amount,
-             metrics.points, metrics.days_late, metrics.total_amount),
-        )
-        return jsonify({"message": "Metrics updated successfully!"}), 200
+        # Extract payment information
+        payments = [
+            Payment(
+                user=f"{user['First_name']} {user['Last_name']}",
+                amount_paid=user.get("Points", 0)
+            )
+            for user in users
+        ]
+        return jsonify([payment.dict() for payment in payments]), 200
+    except requests.RequestException as e:
+        return jsonify({"error": str(e)}), 500
     except ValidationError as e:
         return jsonify({"error": e.errors()}), 400
 
