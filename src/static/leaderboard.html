@@ -1,78 +1,42 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Leaderboard</title>
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/normalize/8.0.1/normalize.min.css">
-    <style>
-        body {
-            font-family: Arial, sans-serif;
-            background-color: #f0f0f0;
-            margin: 0;
-            padding: 0;
-        }
-        .container {
-            max-width: 600px;
-            margin: 50px auto;
-            background: #fff;
-            padding: 20px;
-            border-radius: 10px;
-            box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
-        }
-        h2 {
-            text-align: center;
-            margin-bottom: 20px;
-        }
-        table {
-            width: 100%;
-            border-collapse: collapse;
-        }
-        table th, table td {
-            padding: 10px;
-            border: 1px solid #ddd;
-            text-align: left;
-        }
-        table th {
-            background-color: #f7f7f7;
-        }
-    </style>
-</head>
-<body>
-    <div class="container">
-        <h2>Leaderboard</h2>
-        <table id="leaderboard-table">
-            <thead>
-                <tr>
-                    <th>User</th>
-                    <th>Amount Paid</th>
-                </tr>
-            </thead>
-            <tbody>
-                <!-- Leaderboard data will be populated here -->
-            </tbody>
-        </table>
-    </div>
-    <script>
-        document.addEventListener("DOMContentLoaded", function() {
-            fetch("http://localhost:5000/payments")
-                .then(response => response.json())
-                .then(data => {
-                    const tableBody = document.querySelector("#leaderboard-table tbody");
-                    tableBody.innerHTML = "";
-                    data.forEach(payment => {
-                        const row = document.createElement("tr");
-                        row.innerHTML = `
-                            <td>${payment.user}</td>
-                            <td>${payment.amount_paid}</td>
-                        `;
-                        tableBody.appendChild(row);
-                    });
-                })
-                .catch(error => {
-                    console.error("Error fetching leaderboard data:", error);
-                });
-        });
-    </script>
-</body>
-</html>
+import os
+import requests
+from flask import Flask, jsonify, send_from_directory
+from pydantic import BaseModel, ValidationError
+
+app = Flask(__name__, static_folder="src/static")
+
+# Pydantic model for validation
+class Payment(BaseModel):
+    user: str
+    amount_paid: float
+
+# Endpoint to get the amount each person has paid
+@app.route("/payments", methods=["GET"])
+def get_payments():
+    try:
+        # Retrieve user data from the user management microservice
+        response = requests.get("http://localhost:5000/users")
+        response.raise_for_status()
+        users = response.json()
+
+        # Extract payment information
+        payments = [
+            Payment(
+                user=f"{user['First_name']} {user['Last_name']}",
+                amount_paid=user.get("Points", 0)
+            )
+            for user in users
+        ]
+        return jsonify([payment.dict() for payment in payments]), 200
+    except requests.RequestException as e:
+        return jsonify({"error": str(e)}), 500
+    except ValidationError as e:
+        return jsonify({"error": e.errors()}), 400
+
+# Endpoint to serve the leaderboard HTML file
+@app.route("/leaderboard", methods=["GET"])
+def serve_leaderboard():
+    return send_from_directory(app.static_folder, "leaderboard.html")
+
+if __name__ == "__main__":
+    app.run(debug=True)
