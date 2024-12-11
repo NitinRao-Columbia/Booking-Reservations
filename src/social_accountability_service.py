@@ -1,88 +1,147 @@
 import os
+import time
+from flask import Flask, jsonify, request, make_response
+from flask_swagger_ui import get_swaggerui_blueprint
+from flask_cors import CORS
 import requests
-from flask import Flask, jsonify
-from pydantic import BaseModel, ValidationError
+from dotenv import load_dotenv  # type: ignore
+
+# Load environment variables
+load_dotenv()
 
 app = Flask(__name__)
+CORS(app)
 
-# Pydantic model for validation
-class Payment(BaseModel):
-    user: str
-    amount_paid: float
+# Base URL for the User Management Microservice
+USER_MANAGEMENT_BASE_URL = os.getenv("USER_MANAGEMENT_BASE_URL", "http://localhost:8001")
 
+# Swagger UI setup
+SWAGGER_URL = '/swagger-ui'  # URL for Swagger UI
+API_URL = '/swagger'         # Existing route for Swagger spec
 
-@app.route("/", methods=["GET"])
-def home():
-    return '''
-    <!DOCTYPE html>
-    <html lang="en">
-    <head>
-        <meta charset="UTF-8">
-        <meta name="viewport" content="width=device-width, initial-scale=1.0">
-        <title>Home Page</title>
-        <style>
-            body {
-                font-family: Arial, sans-serif;
-                display: flex;
-                justify-content: center;
-                align-items: center;
-                height: 100vh;
-                margin: 0;
-                background-color: #f0f0f0;
+swaggerui_blueprint = get_swaggerui_blueprint(
+    SWAGGER_URL,  # Swagger UI blueprint endpoint
+    API_URL,      # API spec endpoint
+    config={
+        'app_name': "Social Accountability Microservice"
+    }
+)
+
+app.register_blueprint(swaggerui_blueprint, url_prefix=SWAGGER_URL)
+
+@app.route("/swagger")
+def swagger_spec():
+    """
+    Generate Swagger documentation.
+    """
+    swag = {
+        "swagger": "2.0",
+        "info": {
+            "title": "Social Accountability Microservice",
+            "version": "1.0.0",
+            "description": "A microservice to manage social accountability features like leaderboards."
+        },
+        "paths": {
+            "/leaderboard": {
+                "get": {
+                    "summary": "Get the leaderboard",
+                    "description": "Fetches users and their points from the User Management Microservice and returns a sorted leaderboard.",
+                    "tags": ["Leaderboard"],
+                    "responses": {
+                        "200": {
+                            "description": "A sorted leaderboard of users by points.",
+                            "schema": {
+                                "type": "array",
+                                "items": {
+                                    "type": "object",
+                                    "properties": {
+                                        "user_id": {"type": "string"},
+                                        "first_name": {"type": "string"},
+                                        "last_name": {"type": "string"},
+                                        "points": {"type": "integer"}
+                                    }
+                                }
+                            }
+                        },
+                        "500": {
+                            "description": "Internal Server Error"
+                        }
+                    }
+                }
             }
-            .container {
-                text-align: center;
-                background: #fff;
-                padding: 20px;
-                border-radius: 10px;
-                box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
-            }
-            button {
-                padding: 10px 20px;
-                font-size: 16px;
-                cursor: pointer;
-                border: none;
-                background-color: #007bff;
-                color: #fff;
-                border-radius: 5px;
-            }
-            button:hover {
-                background-color: #0056b3;
-            }
-        </style>
-    </head>
-    <body>
-        <div class="container">
-            <h1>Welcome to the Social Accountability Service</h1>
-            <button onclick="location.href='/payments'">Go to Payments Page</button>
-        </div>
-    </body>
-    </html>
-    '''
+        }
+    }
+    return jsonify(swag)
 
-
-# Endpoint to get the amount each person has paid
-@app.route("/payments", methods=["GET"])
-def get_payments():
+@app.route("/leaderboard", methods=["GET"])
+def get_leaderboard():
+    """
+    Fetches users and their points from the User Management Microservice and returns a sorted leaderboard.
+    ---
+    tags:
+      - Leaderboard
+    responses:
+      200:
+        description: Leaderboard fetched successfully.
+        schema:
+          type: array
+          items:
+            type: object
+            properties:
+              user_id:
+                type: string
+              first_name:
+                type: string
+              last_name:
+                type: string
+              points:
+                type: integer
+      500:
+        description: Internal Server Error
+    """
     try:
-        # Retrieve user data from the user management microservice
-        response = requests.get("http://localhost:5000/users")
-        response.raise_for_status()
+        # Fetch users from User Management Microservice
+        response = requests.get(f"{USER_MANAGEMENT_BASE_URL}/users?limit=10000")  # Large limit to bypass pagination
+        if response.status_code != 200:
+            return jsonify({"detail": "Failed to fetch user data"}), 500
+
         users = response.json()
 
-        # Extract payment information
-        payments = [
-            Payment(
-                user=f"{user['First_name']} {user['Last_name']}",
-                amount_paid=user.get("Points", 0)
-            )
-            for user in users
-        ]
-        return jsonify([payment.dict() for payment in payments]), 200
-    except requests.RequestException as e:
-        return jsonify({"error": str(e)}), 500
-    except ValidationError as e:
-        return jsonify({"error": e.errors()}), 400
+        leaderboard = []
 
+        # Fetch points for each user and construct the leaderboard
+        for user in users:
+            user_id = user.get("user_id")
+            first_name = user.get("first_name")
+            last_name = user.get("last_name")
+
+            # Get points using the get_user_points endpoint
+            points_response = requests.get(f"{USER_MANAGEMENT_BASE_URL}/users/{user_id}/points")
+            points = 0  # Default points if the request fails
+            if points_response.status_code == 200:
+                points = points_response.json().get("points", 0)
+
+            leaderboard.append({
+                "user_id": user_id,
+                "first_name": first_name,
+                "last_name": last_name,
+                "points": points
+            })
+
+        # Sort the leaderboard by points in descending order
+        leaderboard = sorted(leaderboard, key=lambda x: x["points"], reverse=True)
+
+        return jsonify(leaderboard), 200
+
+    except Exception as e:
+        return jsonify({"detail": "An error occurred while fetching the leaderboard", "error": str(e)}), 500
+
+# Health check endpoint
+@app.route("/", methods=["GET"])
+def health_check():
+    """Health check endpoint."""
+    return make_response("<h1>Social Accountability Microservice</h1>", 200)
+
+# Run the Flask app
 if __name__ == "__main__":
-    app.run(debug=True)
+    app.run(host="0.0.0.0", port=8002)
