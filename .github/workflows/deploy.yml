@@ -27,6 +27,6 @@ jobs:
         docker stop social-accountability || true
         docker rm social-accountability || true
 
-        # Run the new container
+        # Run the new container with a fixed name
         docker run -d --name social-accountability -p 8002:8002 social-accountability:latest
 
