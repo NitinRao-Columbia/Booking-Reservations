@@ -27,6 +27,7 @@ jobs:
     - name: Save Docker image to file
       run: |
         docker save social-accountability:latest -o social-accountability.tar
+        chmod 644 social-accountability.tar
 
     # Step 5: Transfer Docker image to the server
     - name: Copy Docker image to server
