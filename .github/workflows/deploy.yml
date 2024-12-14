@@ -29,6 +29,7 @@ jobs:
         source: social-accountability.tar
         target: /tmp/social-accountability.tar
         port: 22
+        fingerprint: " "
 
     # Step 4: Deploy on the server
     - name: Deploy Docker container
