@@ -1,0 +1,61 @@
+name: CI/CD for Docker Container (Without Docker Hub)
+
+on:
+  push:
+    branches:
+      - main  # Trigger deployment on push to the main branch
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+    # Step 1: Check out the code
+    - name: Checkout code
+      uses: actions/checkout@v3
+
+    # Step 2: Set up Docker
+    - name: Set up Docker
+      uses: docker/setup-buildx-action@v2
+
+    # Step 3: Build the Docker image
+    - name: Build Docker image
+      run: |
+        docker build -t social-accountability:latest .
+
+    # Step 4: Save Docker image to a tarball
+    - name: Save Docker image to file
+      run: |
+        docker save social-accountability:latest -o social-accountability.tar
+
+    # Step 5: Transfer Docker image to the server
+    - name: Copy Docker image to server
+      uses: appleboy/scp-action@v0.2.0
+      with:
+        host: ${{ secrets.SERVER_IP }}             # Set your server's public IP as a GitHub secret
+        username: ${{ secrets.SERVER_USER }}       # Set the SSH username as a GitHub secret (e.g., ubuntu)
+        key: ${{ secrets.SERVER_SSH_KEY }}         # Add your private SSH key as a GitHub secret
+        source: social-accountability.tar
+        target: /tmp/social-accountability.tar     # Copy to a temporary location on the server
+
+    # Step 6: Deploy the Docker container on the server
+    - name: Deploy container
+      uses: appleboy/ssh-action@v0.1.10
+      with:
+        host: ${{ secrets.SERVER_IP }}             # Server IP
+        username: ${{ secrets.SERVER_USER }}       # SSH username
+        key: ${{ secrets.SERVER_SSH_KEY }}         # SSH private key
+        script: |
+          # Load the Docker image from the tarball
+          docker load < /tmp/social-accountability.tar
+          
+          # Stop and remove the existing container if running
+          docker stop social-accountability || true
+          docker rm social-accountability || true
+          
+          # Run the new container
+          docker run -d --name social-accountability -p 8002:8002 social-accountability:latest
+          
+          # Clean up the tarball
+          rm -f /tmp/social-accountability.tar
+
