@@ -3,10 +3,10 @@ name: CI/CD for Docker Container
 on:
   push:
     branches:
-      - main  # Trigger deployment on push to main branch
+      - main
 
 jobs:
-  deploy:
+  build-and-deploy:
     runs-on: ubuntu-latest
 
     steps:
@@ -18,8 +18,15 @@ jobs:
     - name: Build Docker image
       run: |
         docker build -t social-accountability:latest .
+        docker images  # Verify the image exists
 
-    # Step 3: Transfer the Docker image to the server
+    # Step 3: Save Docker image to a tarball
+    - name: Save Docker image to file
+      run: |
+        docker save social-accountability:latest -o social-accountability.tar
+        ls -lh social-accountability.tar  # Verify the tarball size
+
+    # Step 4: Transfer Docker image to the server
     - name: Copy Docker image to server
       uses: appleboy/scp-action@v0.1.7
       with:
@@ -29,10 +36,10 @@ jobs:
         source: social-accountability.tar
         target: /tmp/social-accountability.tar
         port: 22
-        fingerprint: " "
+        fingerprint: " "  # Disable strict host checking
 
-    # Step 4: Deploy on the server
-    - name: Deploy Docker container
+    # Step 5: Deploy the Docker container on the server
+    - name: Deploy container
       uses: appleboy/ssh-action@v0.1.7
       with:
         host: ${{ secrets.SERVER_IP }}
