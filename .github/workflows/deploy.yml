@@ -1,4 +1,4 @@
-name: Minimum CI/CD for Docker Container
+name: CI/CD for Docker Container
 
 on:
   push:
@@ -29,7 +29,6 @@ jobs:
         source: social-accountability.tar
         target: /tmp/social-accountability.tar
         port: 22
-        args: "-o StrictHostKeyChecking=no"
 
     # Step 4: Deploy on the server
     - name: Deploy Docker container
