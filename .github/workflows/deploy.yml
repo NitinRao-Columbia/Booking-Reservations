@@ -25,7 +25,7 @@ jobs:
       run: |
         docker save social-accountability:latest -o social-accountability.tar
         ls -lh social-accountability.tar  # Verify the tarball size
-
+        chmod 644 social-accountability.tar
     # Step 4: Transfer Docker image to the server
     - name: Copy Docker image to server
       uses: appleboy/scp-action@v0.1.7
