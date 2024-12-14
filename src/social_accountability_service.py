@@ -123,6 +123,7 @@ def get_leaderboard():
     """
     try:
         # Fetch users from User Management Microservice
+        notify_user_management()
         response = requests.get(f"{USER_MANAGEMENT_BASE_URL}/users?limit=10000")  # Large limit to bypass pagination
         if response.status_code != 200:
             return jsonify({"detail": "Failed to fetch user data"}), 500
