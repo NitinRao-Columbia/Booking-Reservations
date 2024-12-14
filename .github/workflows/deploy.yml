@@ -1,4 +1,4 @@
-name: CI/CD for Docker Container
+name: CI/CD for Docker Container (Self-Deployment)
 
 on:
   push:
@@ -20,35 +20,13 @@ jobs:
         docker build -t social-accountability:latest .
         docker images  # Verify the image exists
 
-    # Step 3: Save Docker image to a tarball
-    - name: Save Docker image to file
-      run: |
-        docker save social-accountability:latest -o social-accountability.tar
-        ls -lh social-accountability.tar  # Verify the tarball size
-        chmod 644 social-accountability.tar
-    # Step 4: Transfer Docker image to the server
-    - name: Copy Docker image to server
-      uses: appleboy/scp-action@v0.1.7
-      with:
-        host: ${{ secrets.SERVER_IP }}
-        username: ${{ secrets.SERVER_USER }}
-        key: ${{ secrets.SERVER_SSH_KEY }}
-        source: social-accountability.tar
-        target: /tmp/social-accountability.tar
-        port: 22
-        fingerprint: " "  # Disable strict host checking
-
-    # Step 5: Deploy the Docker container on the server
+    # Step 3: Deploy the Docker container locally
     - name: Deploy container
-      uses: appleboy/ssh-action@v0.1.7
-      with:
-        host: ${{ secrets.SERVER_IP }}
-        username: ${{ secrets.SERVER_USER }}
-        key: ${{ secrets.SERVER_SSH_KEY }}
-        script: |
-          docker load < /tmp/social-accountability.tar
-          docker stop social-accountability || true
-          docker rm social-accountability || true
-          docker run -d --name social-accountability -p 8002:8002 social-accountability:latest
-          rm -f /tmp/social-accountability.tar
+      run: |
+        # Stop and remove the existing container if running
+        docker stop social-accountability || true
+        docker rm social-accountability || true
+
+        # Run the new container
+        docker run -d --name social-accountability -p 8002:8002 social-accountability:latest
 
