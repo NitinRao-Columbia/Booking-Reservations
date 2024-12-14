@@ -38,6 +38,9 @@ jobs:
         key: ${{ secrets.SERVER_SSH_KEY }}         # Add your private SSH key as a GitHub secret
         source: social-accountability.tar
         target: /tmp/social-accountability.tar     # Copy to a temporary location on the server
+        port: 22
+        debug: true
+        args: "-o StrictHostKeyChecking=no"
 
     # Step 6: Deploy the Docker container on the server
     - name: Deploy container
