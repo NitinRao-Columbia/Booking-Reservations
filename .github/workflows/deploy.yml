@@ -30,7 +30,7 @@ jobs:
 
     # Step 5: Transfer Docker image to the server
     - name: Copy Docker image to server
-      uses: appleboy/scp-action@v0.2.0
+      uses: appleboy/scp-action@v0.1.7
       with:
         host: ${{ secrets.SERVER_IP }}             # Set your server's public IP as a GitHub secret
         username: ${{ secrets.SERVER_USER }}       # Set the SSH username as a GitHub secret (e.g., ubuntu)
@@ -40,7 +40,7 @@ jobs:
 
     # Step 6: Deploy the Docker container on the server
     - name: Deploy container
-      uses: appleboy/ssh-action@v0.1.10
+      uses: appleboy/ssh-action@v0.1.7
       with:
         host: ${{ secrets.SERVER_IP }}             # Server IP
         username: ${{ secrets.SERVER_USER }}       # SSH username
