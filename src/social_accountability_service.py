@@ -76,6 +76,7 @@ def swagger_spec():
 
 #pub to user managment sub
 def notify_user_management():
+    print("trying to notify")
     webhook_url = "http://3.145.144.209:8001/webhook"  # User Management webhook URL
     #Generate current UTC timestamp in ISO 8601 format
     current_time = datetime.utcnow().isoformat() + "Z"
