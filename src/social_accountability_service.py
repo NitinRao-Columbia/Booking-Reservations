@@ -5,6 +5,7 @@ from flask_swagger_ui import get_swaggerui_blueprint
 from flask_cors import CORS
 import requests
 from dotenv import load_dotenv  # type: ignore
+import requests
 
 # Load environment variables
 load_dotenv()
@@ -72,6 +73,27 @@ def swagger_spec():
         }
     }
     return jsonify(swag)
+
+#pub to user managment sub
+def notify_user_management():
+    webhook_url = "http://3.145.144.209:8001/webhook"  # User Management webhook URL
+    #Generate current UTC timestamp in ISO 8601 format
+    current_time = datetime.utcnow().isoformat() + "Z"
+    payload = {
+        "event_type": "UserDataAccess",
+        "timestamp": current_time,
+        "message": "Social Accountability service is about to access user data."
+    }
+    headers = {"Content-Type": "application/json"}
+    
+    try:
+        response = requests.post(webhook_url, json=payload, headers=headers)
+        if response.status_code == 200:
+            print("Notification sent successfully!")
+        else:
+            print(f"Failed to notify: {response.status_code}, {response.text}")
+    except Exception as e:
+        print(f"Error sending notification: {e}")
 
 @app.route("/leaderboard", methods=["GET"])
 def get_leaderboard():
