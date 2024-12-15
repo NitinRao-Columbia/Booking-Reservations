@@ -42,22 +42,20 @@ def parse_receipt_text(extracted_text):
 
     # Separate items and prices
     for line in lines:
-        if re.match(r"^\d+\.\d{2}$", line.strip()):  # Line is a price
+        if re.match(r"^\d+\.\d{2}$", line.strip()):  
             price_lines.append(float(line.strip()))
-        else:  # Line is an item
+        else:  
             item_lines.append(line.strip())
 
     # Pair items with prices
     print(f"Items: {item_lines}")
     print(f"Prices: {price_lines}")
     receipt_data = []
-    max_pairs = max(len(item_lines), len(price_lines))  # Ensure all items are accounted for
+    max_pairs = max(len(item_lines), len(price_lines))  
     for i in range(max_pairs):
-        # Get the item and price, or assign NaN for missing values
         item_line = item_lines[i] if i < len(item_lines) else None
         price = price_lines[i] if i < len(price_lines) else None
 
-        # Extract quantity and item name
         if item_line:
             match = re.match(r"^\s*(\d+)?\s*(.*?)\s*(\(\$?\d+\.\d{2}\))?$", item_line)
             if match:
@@ -65,7 +63,7 @@ def parse_receipt_text(extracted_text):
                 item_name = match.group(2).strip()
                 receipt_data.append((item_name, quantity, price))
             else:
-                receipt_data.append((item_line, 1, price))  # Default quantity to 1 if no match
+                receipt_data.append((item_line, 1, price)) 
         else:
             # Handle cases where there is a price but no corresponding item
             receipt_data.append((None, None, price))
@@ -86,7 +84,6 @@ def main():
     extracted_text = extract_text_from_image(client, image_content)
     receipt_data = parse_receipt_text(extracted_text)
 
-    # Save the extracted data to a DataFrame and output to Excel
     df = pd.DataFrame(receipt_data, columns=["Item", "Quantity", "Price"])
     df.to_excel('receipt_output.xlsx', index=False)
     print("Receipt data saved to receipt_output.xlsx")
