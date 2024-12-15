@@ -7,6 +7,8 @@ import requests
 from dotenv import load_dotenv  # type: ignore
 import requests
 import time
+import aiohttp
+import asyncio
 
 # Load environment variables
 load_dotenv()
@@ -97,6 +99,14 @@ def notify_user_management():
     except Exception as e:
         print(f"Error sending notification: {e}")
 
+# Async function to fetch user data
+async def fetch_users_async():
+    async with aiohttp.ClientSession() as session:
+        async with session.get(f"{USER_MANAGEMENT_BASE_URL}/users?limit=10000") as response:
+            if response.status == 200:
+                return await response.json()
+            return None
+
 @app.route("/leaderboard", methods=["GET"])
 def get_leaderboard():
     """
@@ -120,42 +130,31 @@ def get_leaderboard():
                 type: string
               points:
                 type: integer
-      500:
-        description: Internal Server Error
+        500:
+            description: Internal Server Error
     """
     try:
-        # Fetch users from User Management Microservice
-        notify_user_management()
-        response = requests.get(f"{USER_MANAGEMENT_BASE_URL}/users?limit=10000")  # Large limit to bypass pagination
-        if response.status_code != 200:
+        # Run async function synchronously
+        loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(loop)
+        users = loop.run_until_complete(fetch_users_async())
+
+        if not users:
             return jsonify({"detail": "Failed to fetch user data"}), 500
 
-        users = response.json()
+        # Dummy leaderboard processing
+        leaderboard = [
+            {
+                "user_id": user.get("user_id"),
+                "first_name": user.get("first_name"),
+                "last_name": user.get("last_name"),
+                "points": 0  # Placeholder points
+            }
+            for user in users
+        ]
 
-        leaderboard = []
-
-        # Fetch points for each user and construct the leaderboard
-        for user in users:
-            user_id = user.get("user_id")
-            first_name = user.get("first_name")
-            last_name = user.get("last_name")
-
-            # Get points using the get_user_points endpoint
-            points_response = requests.get(f"{USER_MANAGEMENT_BASE_URL}/users/{user_id}/points")
-            points = 0  # Default points if the request fails
-            if points_response.status_code == 200:
-                points = points_response.json().get("points", 0)
-
-            leaderboard.append({
-                "user_id": user_id,
-                "first_name": first_name,
-                "last_name": last_name,
-                "points": points
-            })
-
-        # Sort the leaderboard by points in descending order
+        # Sort the leaderboard by points
         leaderboard = sorted(leaderboard, key=lambda x: x["points"], reverse=True)
-
         return jsonify(leaderboard), 200
 
     except Exception as e:
