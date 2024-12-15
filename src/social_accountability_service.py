@@ -6,8 +6,7 @@ from flask_cors import CORS
 import requests
 from dotenv import load_dotenv  # type: ignore
 import requests
-from datetime import datetime
-
+import time
 
 # Load environment variables
 load_dotenv()
@@ -81,7 +80,7 @@ def notify_user_management():
     print("trying to notify")
     webhook_url = "http://3.145.144.209:8001/webhook"  # User Management webhook URL
     #Generate current UTC timestamp in ISO 8601 format
-    current_time = datetime.utcnow().isoformat() + "Z"
+    current_time = time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())
     payload = {
         "event_type": "UserDataAccess",
         "timestamp": current_time,
