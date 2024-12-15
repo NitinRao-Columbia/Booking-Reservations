@@ -4,28 +4,26 @@ from flask import Flask, jsonify, request, make_response
 from flask_swagger_ui import get_swaggerui_blueprint
 from flask_cors import CORS
 import requests
-from dotenv import load_dotenv  # type: ignore
+from dotenv import load_dotenv 
 import requests
 import time
 import aiohttp
 import asyncio
 
-# Load environment variables
 load_dotenv()
 
 app = Flask(__name__)
 CORS(app)
 
-# Base URL for the User Management Microservice
 USER_MANAGEMENT_BASE_URL = os.getenv("USER_MANAGEMENT_BASE_URL", "http://localhost:8001")
 
 # Swagger UI setup
-SWAGGER_URL = '/swagger-ui'  # URL for Swagger UI
-API_URL = '/swagger'         # Existing route for Swagger spec
+SWAGGER_URL = '/swagger-ui'  
+API_URL = '/swagger'         
 
 swaggerui_blueprint = get_swaggerui_blueprint(
-    SWAGGER_URL,  # Swagger UI blueprint endpoint
-    API_URL,      # API spec endpoint
+    SWAGGER_URL,
+    API_URL,
     config={
         'app_name': "Social Accountability Microservice"
     }
@@ -80,8 +78,7 @@ def swagger_spec():
 #pub to user managment sub
 def notify_user_management():
     print("trying to notify")
-    webhook_url = "http://3.145.144.209:8001/webhook"  # User Management webhook URL
-    #Generate current UTC timestamp in ISO 8601 format
+    webhook_url = "http://3.145.144.209:8001/webhook"  
     current_time = time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())
     payload = {
         "event_type": "UserDataAccess",
@@ -160,7 +157,6 @@ def get_leaderboard():
     except Exception as e:
         return jsonify({"detail": "An error occurred while fetching the leaderboard", "error": str(e)}), 500
 
-# Health check endpoint
 @app.route("/", methods=["GET"])
 def health_check():
     """Health check endpoint."""
